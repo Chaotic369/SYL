@@ -128,10 +128,11 @@ tailwind.config = {
                     <button onclick="switchTab('sem1')" id="tab-sem1" class="px-6 py-3 font-medium text-sm border border-neu-track hover:bg-neu-box text-red-500 hover:text-red-600 rounded-2xl transition-all">Semester I</button>
                   </div>
 
-        <div id="subject-roots" class="flex flex-wrap gap-3 mb-10 px-2 hidden"></div>
+        <div id="subject-roots" class="flex flex-wrap gap-3 mb-4 px-2 hidden"></div>
+                <div id="unit-roots" class="flex flex-wrap gap-3 mb-10 px-2 hidden"></div>
 
-        <div id="subject-grid-root" class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          </div>
+                <div id="subject-grid-root" class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  </div>
 
   </main>
 
@@ -436,10 +437,11 @@ tailwind.config = {
   const USER_DOC = db.collection('syllabus_tracker').doc('global_user_1');
 
   let completedTopicsMap = {};
-    let targetedActiveFilter = 'sem3';
-    let targetedSubjectFilter = 'all';
+      let targetedActiveFilter = 'sem3';
+      let targetedSubjectFilter = 'all';
+      let targetedUnitFilter = 'all';
 
-    const subjectShortNames = {
+      const subjectShortNames = {
       "sem1_discrete_math": "Maths",
       "sem3_os": "OS",
       "sem3_dbms": "DBMS",
@@ -455,12 +457,21 @@ tailwind.config = {
         root.innerHTML = '';
 
         curriculumSyllabus.forEach(subject => {
-          if (targetedActiveFilter === 'sem1' && subject.semester !== 1) return;
-          if (targetedActiveFilter === 'sem3' && subject.semester !== 3) return;
-          if (targetedSubjectFilter !== 'all' && subject.id !== targetedSubjectFilter) return;
+                  if (targetedActiveFilter === 'sem1' && subject.semester !== 1) return;
+                  if (targetedActiveFilter === 'sem3' && subject.semester !== 3) return;
+                  if (targetedSubjectFilter !== 'all' && subject.id !== targetedSubjectFilter) return;
 
-          const subjectCard = document.createElement('div');
-                      subjectCard.className = "flex flex-col mb-8";
+                  let hasVisibleUnits = false;
+                  subject.units.forEach((unit, unitIdx) => {
+                    if (targetedUnitFilter === 'all' || targetedUnitFilter === `unit${unitIdx + 1}`) {
+                      hasVisibleUnits = true;
+                    }
+                  });
+
+                  if (!hasVisibleUnits) return;
+
+                  const subjectCard = document.createElement('div');
+                              subjectCard.className = "flex flex-col mb-8";
                       subjectCard.id = `card-${subject.id}`;
 
                       let html = `
@@ -485,8 +496,9 @@ tailwind.config = {
                       `;
 
                 subject.units.forEach((unit, unitIdx) => {
-                  html += `
-                    <div class="bg-neu-box p-5 rounded-[20px]">
+                                  if (targetedUnitFilter !== 'all' && targetedUnitFilter !== `unit${unitIdx + 1}`) return;
+                                  html += `
+                                    <div class="bg-neu-box p-5 rounded-[20px]">
                                           <h4 class="text-[11px] font-medium text-neu-text pb-2 mb-4 border-b border-neu-track uppercase tracking-widest font-mono flex items-center gap-2">
                                             <i class="fa-regular fa-folder text-neu-highlight"></i> ${unit.name}
                                           </h4>
@@ -621,34 +633,65 @@ tailwind.config = {
           container.innerHTML = html;
         }
 
-      function switchSubject(subjectId) {
-        targetedSubjectFilter = subjectId;
-        renderSubjectRoots();
-        renderCurriculumStructure();
-      }
-
-      function switchTab(type) {
-                targetedActiveFilter = type;
-                targetedSubjectFilter = 'all'; // Reset subject filter when changing semesters
-                ['sem3', 'sem1'].forEach(t => {
-                  const btn = document.getElementById(`tab-${t}`);
-                  if (btn) {
-                    const isSelected = (t === type);
-                    const bgClass = isSelected ? "bg-neu-box" : "hover:bg-neu-box";
-        
-                    let color = "";
-                    if (t === 'sem1') {
-                      color = isSelected ? "text-red-600" : "text-red-500 hover:text-red-600";
-                    } else {
-                      color = isSelected ? "text-neu-highlight" : "text-neu-text hover:text-neu-highlight";
-                    }
-        
-                    btn.className = `px-6 py-3 font-medium text-sm border border-neu-track rounded-2xl transition-all ${bgClass} ${color}`;
-                  }
-                });
-                renderSubjectRoots();
-                renderCurriculumStructure();
+      function renderUnitRoots() {
+              const container = document.getElementById('unit-roots');
+              if (!container) return;
+  
+              if (targetedSubjectFilter !== 'all') {
+                container.classList.add('hidden');
+                return;
               }
+  
+              container.classList.remove('hidden');
+              let html = `<button onclick="switchUnit('all')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${targetedUnitFilter === 'all' ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight'}">All Units</button>`;
+  
+              for(let i=1; i<=4; i++) {
+                const isActive = targetedUnitFilter === `unit${i}`;
+                const btnClass = isActive ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight';
+                html += `<button onclick="switchUnit('unit${i}')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${btnClass}">Unit ${i}</button>`;
+              }
+  
+              container.innerHTML = html;
+            }
+
+            function switchUnit(unitId) {
+              targetedUnitFilter = unitId;
+              renderUnitRoots();
+              renderCurriculumStructure();
+            }
+
+            function switchSubject(subjectId) {
+              targetedSubjectFilter = subjectId;
+              targetedUnitFilter = 'all';
+              renderSubjectRoots();
+              renderUnitRoots();
+              renderCurriculumStructure();
+            }
+
+            function switchTab(type) {
+                      targetedActiveFilter = type;
+                      targetedSubjectFilter = 'all'; // Reset subject filter when changing semesters
+                      targetedUnitFilter = 'all'; // Reset unit filter
+                      ['sem3', 'sem1'].forEach(t => {
+                        const btn = document.getElementById(`tab-${t}`);
+                        if (btn) {
+                          const isSelected = (t === type);
+                          const bgClass = isSelected ? "bg-neu-box" : "hover:bg-neu-box";
+        
+                          let color = "";
+                          if (t === 'sem1') {
+                            color = isSelected ? "text-red-600" : "text-red-500 hover:text-red-600";
+                          } else {
+                            color = isSelected ? "text-neu-highlight" : "text-neu-text hover:text-neu-highlight";
+                          }
+        
+                          btn.className = `px-6 py-3 font-medium text-sm border border-neu-track rounded-2xl transition-all ${bgClass} ${color}`;
+                        }
+                      });
+                      renderSubjectRoots();
+                      renderUnitRoots();
+                      renderCurriculumStructure();
+                    }
 
     function updateSyncStatus(msg, isProcessing = false, isError = false) {
       const dot = document.getElementById('sync-dot');
@@ -733,12 +776,13 @@ tailwind.config = {
           updateSyncStatus('New Profile Ready');
         }
       } catch(e) {
-            console.error("Initialization data lookup crashed:", e);
-            updateSyncStatus('Offline / Connection Failed', false, true);
-          }
-          renderSubjectRoots();
-          renderCurriculumStructure();
-        });
+                  console.error("Initialization data lookup crashed:", e);
+                  updateSyncStatus('Offline / Connection Failed', false, true);
+                }
+                renderSubjectRoots();
+                renderUnitRoots();
+                renderCurriculumStructure();
+              });
   </script>
 </body>
 </html>
