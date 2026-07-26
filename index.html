@@ -108,12 +108,9 @@ tailwind.config = {
           <i class="fa-solid fa-arrow-rotate-left"></i>
         </button>
         <button id="restore-btn" onclick="restoreSyllabus()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-orange-400 hover:text-orange-600 shadow-sm transition-all" title="Restore Default Syllabus (Fix Order/Remove Custom)">
-          <i class="fa-solid fa-clock-rotate-left"></i>
-        </button>
-        <button id="reset-btn" onclick="resetProgress()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-red-400 hover:text-red-600 shadow-sm transition-all" title="Reset All Progress (Clear Checkmarks)">
-          <i class="fa-solid fa-eraser"></i>
-        </button>
-        <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Theme">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+              </button>
+              <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Theme">
           <i class="fa-solid fa-moon"></i>
         </button>
       </div>
@@ -488,18 +485,7 @@ tailwind.config = {
                 showToast("Undo successful");
               }
 
-              function resetProgress() {
-                      if (!confirm("Are you sure you want to clear all completed topics? (Custom added topics will not be deleted)")) return;
-        
-                      if (typeof pushToHistory === 'function') pushToHistory();
-                      completedTopicsMap = {};
-        
-                      saveCloudState();
-                      renderCurriculumStructure();
-                      showToast("Progress Reset");
-                    }
-
-                    function restoreSyllabus() {
+              function restoreSyllabus() {
                       if (!confirm("Are you sure you want to restore the default syllabus? This will remove any custom topics and undo all sorting/reordering.")) return;
 
                       if (typeof pushToHistory === 'function') pushToHistory();
