@@ -103,11 +103,20 @@ tailwind.config = {
 <body class="font-sans antialiased min-height-screen pb-12 transition-colors duration-300">
 
   <div class="fixed top-6 right-6 z-50 flex items-center gap-3">
-      <div id="sync-dot" class="w-2 h-2 rounded-full bg-neu-accent shrink-0 transition-colors duration-300 shadow-sm" title="Initializing..."></div>
-      <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Theme">
-        <i class="fa-solid fa-moon"></i>
-      </button>
-    </div>
+        <div id="sync-dot" class="w-2 h-2 rounded-full bg-neu-accent shrink-0 transition-colors duration-300 shadow-sm" title="Initializing..."></div>
+        <button id="undo-btn" onclick="undoChange()" class="hidden w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Undo Last Action">
+          <i class="fa-solid fa-arrow-rotate-left"></i>
+        </button>
+        <button id="restore-btn" onclick="restoreSyllabus()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-orange-400 hover:text-orange-600 shadow-sm transition-all" title="Restore Default Syllabus (Fix Order/Remove Custom)">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </button>
+        <button id="reset-btn" onclick="resetProgress()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-red-400 hover:text-red-600 shadow-sm transition-all" title="Reset All Progress (Clear Checkmarks)">
+          <i class="fa-solid fa-eraser"></i>
+        </button>
+        <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Theme">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
 
   <main class="max-w-7xl mx-auto px-4 py-8 pt-12">
     
@@ -137,12 +146,13 @@ tailwind.config = {
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
-  <script>
-  const curriculumSyllabus = [
-    {
-      id: "sem1_discrete_math",
+    <script>
+    let curriculumSyllabus = [
+      {
+        id: "sem1_discrete_math",
       semester: 1,
       code: "SUFCBCAGAI103",
       title: "Discrete Mathematics",
@@ -413,17 +423,20 @@ tailwind.config = {
           ]
         },
         {
-          name: "Unit 4 Lab Exceptions & System Interacting Structures",
-          topics: [
-            "Prog 1: DivideByZero handling trapping ArithmeticException objects", "Prog 2: Nested try structures resolution testing order metrics", 
-            "Prog 3: Custom local Exception class creation and error propagation handling"
-          ]
-        }
-      ]
-    }
-  ];
+                  name: "Unit 4 Lab Exceptions & System Interacting Structures",
+                  topics: [
+                    "Prog 1: DivideByZero handling trapping ArithmeticException objects", "Prog 2: Nested try structures resolution testing order metrics", 
+                    "Prog 3: Custom local Exception class creation and error propagation handling"
+                  ]
+                }
+              ]
+            }
+          ];
 
-  const firebaseConfig = {
+          // Creates a deep copy of the original factory array immediately on load
+          const defaultSyllabus = JSON.parse(JSON.stringify(curriculumSyllabus));
+
+          const firebaseConfig = {
     apiKey: "AIzaSyAHDMiGbQT6mgYON0mMmGTfmeGSkKMgPBM",
     authDomain: "qnea-aff56.firebaseapp.com",
     projectId: "qnea-aff56",
@@ -437,11 +450,69 @@ tailwind.config = {
   const USER_DOC = db.collection('syllabus_tracker').doc('global_user_1');
 
   let completedTopicsMap = {};
-      let targetedActiveFilter = 'sem3';
-      let targetedSubjectFilter = 'all';
-      let targetedUnitFilter = 'all';
+        let targetedActiveFilter = 'sem3';
+        let targetedSubjectFilter = 'all';
+        let targetedUnitFilter = 'all';
 
-      const subjectShortNames = {
+        let historyStack = [];
+
+        function pushToHistory() {
+          // Take a deep clone snapshot of the current state before modifying it
+          historyStack.push({
+            syllabus: JSON.parse(JSON.stringify(curriculumSyllabus)),
+            map: JSON.parse(JSON.stringify(completedTopicsMap))
+          });
+        
+          // Cap the history to the last 30 actions to save memory
+          if (historyStack.length > 30) historyStack.shift();
+        
+          const undoBtn = document.getElementById('undo-btn');
+          if (undoBtn) undoBtn.classList.remove('hidden');
+        }
+
+        function undoChange() {
+                if (historyStack.length === 0) return;
+        
+                // Pop the last saved state and restore it
+                const prevState = historyStack.pop();
+                curriculumSyllabus = prevState.syllabus;
+                completedTopicsMap = prevState.map;
+        
+                if (historyStack.length === 0) {
+                  const undoBtn = document.getElementById('undo-btn');
+                  if (undoBtn) undoBtn.classList.add('hidden');
+                }
+        
+                saveCloudState();
+                renderCurriculumStructure();
+                showToast("Undo successful");
+              }
+
+              function resetProgress() {
+                      if (!confirm("Are you sure you want to clear all completed topics? (Custom added topics will not be deleted)")) return;
+        
+                      if (typeof pushToHistory === 'function') pushToHistory();
+                      completedTopicsMap = {};
+        
+                      saveCloudState();
+                      renderCurriculumStructure();
+                      showToast("Progress Reset");
+                    }
+
+                    function restoreSyllabus() {
+                      if (!confirm("Are you sure you want to restore the default syllabus? This will remove any custom topics and undo all sorting/reordering.")) return;
+
+                      if (typeof pushToHistory === 'function') pushToHistory();
+        
+                      // Overwrite the current active syllabus with the pristine factory clone
+                      curriculumSyllabus = JSON.parse(JSON.stringify(defaultSyllabus));
+        
+                      saveCloudState();
+                      renderCurriculumStructure();
+                      showToast("Default Syllabus Restored");
+                    }
+
+                    const subjectShortNames = {
       "sem1_discrete_math": "Maths",
       "sem3_os": "OS",
       "sem3_dbms": "DBMS",
@@ -500,40 +571,69 @@ tailwind.config = {
                                   html += `
                                     <div class="bg-neu-box p-5 rounded-[20px]">
                                           <h4 class="text-[11px] font-medium text-neu-text pb-2 mb-4 border-b border-neu-track uppercase tracking-widest font-mono flex items-center gap-2">
-                                            <i class="fa-regular fa-folder text-neu-highlight"></i> ${unit.name}
-                                          </h4>
-                                          <ul class="space-y-4">
-                  `;
+                                                                                      <i class="fa-regular fa-folder text-neu-highlight"></i> ${unit.name}
+                                                                                    </h4>
+                                                                                    <ul class="space-y-2 sortable-list min-h-[10px]" data-subject="${subject.id}" data-unit="${unitIdx}">
+                                                            `;
 
-        unit.topics.forEach((topic, topicIdx) => {
-                          const uniqueId = `${subject.id}_u${unitIdx}_t${topicIdx}`;
-                          html += `
-                            <li class="flex items-start space-x-3 text-xs text-neu-text transition-colors group">
-                              <input 
-                                type="checkbox" 
-                                id="${uniqueId}" 
-                                class="mt-0.5 flex-shrink-0 cursor-pointer"
-                                onchange="toggleTopicCompletion('${uniqueId}')"
-                              >
-                              <div class="flex-1">
-                                <label for="${uniqueId}" onclick="copyTopic(this.innerText)" class="cursor-pointer select-none leading-relaxed font-light block active:opacity-50 transition-opacity" title="Touch to copy">${topic}</label>
-                                <span id="ts-${uniqueId}" class="text-[9px] text-neu-accent mt-0.5 font-mono empty:hidden block"></span>
-                              </div>
-                            </li>
-                          `;
-                        });
+                                                  unit.topics.forEach((topic, topicIdx) => {
+                                                            const uniqueId = `${subject.id}_u${unitIdx}_t${topicIdx}`;
+                                                            html += `
+                                                              <li class="flex items-start space-x-3 text-xs text-neu-text transition-colors bg-neu-box rounded-xl -mx-2 p-2 touch-manipulation">
+                                                                <i class="fa-solid fa-grip-vertical text-neu-track mt-1 ml-1 cursor-grab active:cursor-grabbing text-[11px]" title="Hold to drag"></i>
+                                                                <input 
+                                                                  type="checkbox" 
+                                                                  id="${uniqueId}" 
+                                                                  class="mt-0.5 flex-shrink-0 cursor-pointer"
+                                                                  onchange="toggleTopicCompletion('${uniqueId}')"
+                                                                >
+                                                                <div class="flex-1">
+                                                                  <label for="${uniqueId}" onclick="copyTopic(this.innerText)" class="cursor-pointer select-none leading-relaxed font-light block active:opacity-50 transition-opacity" title="Touch to copy">${topic}</label>
+                                                                  <span id="ts-${uniqueId}" class="text-[9px] text-neu-accent mt-0.5 font-mono empty:hidden block"></span>
+                                                                </div>
+                                                              </li>
+                                                            `;
+                                                          });
 
-        html += `</ul></div>`;
-      });
+                                                  html += `
+                                                          </ul>
+                                                          <div class="pt-3">
+                                                                                                                      <button onclick="promptAppendTopic('${subject.id}', ${unitIdx})" class="text-[11px] font-medium text-neu-accent hover:text-neu-highlight hover:bg-neu-track/50 transition-colors flex items-center gap-1.5 py-1.5 px-3 rounded-lg active:scale-95 border border-dashed border-neu-track w-max">
+                                                                                                                        <i class="fa-solid fa-plus"></i> Add Topic
+                                                                                                                      </button>
+                                                                                                                    </div>
+                                                                                                                  </div>`;
+                                                                                                          });
 
-      html += `</div></div>`;
-      subjectCard.innerHTML = html;
-      root.appendChild(subjectCard);
-    });
+                                                                html += `</div></div>`;
+            subjectCard.innerHTML = html;
+            root.appendChild(subjectCard);
+          });
 
-    restoreCheckboxStates();
-    evaluateProgressCalculations();
-  }
+          // Initialize drag and drop behavior
+          document.querySelectorAll('.sortable-list').forEach(listEl => {
+            Sortable.create(listEl, {
+              animation: 200,
+              delay: 250, // Long press threshold in ms
+              delayOnTouchOnly: true, // Only require long press on mobile touch devices
+              handle: 'li', // Makes the entire block draggable, not just the handle
+              ghostClass: 'opacity-40', // Visual cue for the item being dragged
+              onEnd: function (evt) {
+                const subjectId = evt.from.getAttribute('data-subject');
+                const unitIdx = parseInt(evt.from.getAttribute('data-unit'));
+                const oldIndex = evt.oldIndex;
+                const newIndex = evt.newIndex;
+          
+                if (oldIndex !== newIndex) {
+                  reorderTopic(subjectId, unitIdx, oldIndex, newIndex);
+                }
+              }
+            });
+          });
+
+          restoreCheckboxStates();
+          evaluateProgressCalculations();
+        }
 
   function evaluateProgressCalculations() {
     let grandTotalCount = 0;
@@ -580,10 +680,11 @@ tailwind.config = {
           }
 
   function toggleTopicCompletion(id) {
-      const el = document.getElementById(id);
-      const tsEl = document.getElementById(`ts-${id}`);
-      if (el) {
-        if (el.checked) {
+        const el = document.getElementById(id);
+        const tsEl = document.getElementById(`ts-${id}`);
+        if (el) {
+          pushToHistory();
+          if (el.checked) {
           const now = new Date();
           const dateString = now.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
           completedTopicsMap[id] = dateString;
@@ -739,20 +840,73 @@ tailwind.config = {
       dot.title = msg;
     }
 
-  async function saveCloudState() {
-      updateSyncStatus('Syncing changes...', true);
-      try {
-        const isDark = document.documentElement.classList.contains('dark-mode');
-        await USER_DOC.set({ 
-          completedTopicsMap,
-          theme: isDark ? 'dark' : 'light'
-        }, { merge: true });
-        updateSyncStatus('Cloud Synced');
-      } catch (e) {
-        console.error("Cloud synchronization failure:", e);
-        updateSyncStatus('Sync Error (Check Console)', false, true);
-      }
+  function promptAppendTopic(subjectId, unitIdx) {
+        const newTopic = prompt("Enter new topic name:");
+        if (!newTopic || !newTopic.trim()) return;
+
+        const subject = curriculumSyllabus.find(s => s.id === subjectId);
+        if (!subject) return;
+
+        const unit = subject.units[unitIdx];
+    
+        pushToHistory();
+        // Simply push to the end of the array, no ID shifting needed
+        unit.topics.push(newTopic.trim());
+    
+      saveCloudState();
+      renderCurriculumStructure();
     }
+
+    function reorderTopic(subjectId, unitIdx, oldIndex, newIndex) {
+          const subject = curriculumSyllabus.find(s => s.id === subjectId);
+          if (!subject) return;
+          const unit = subject.units[unitIdx];
+
+          pushToHistory();
+
+          // 1. Swap topic positions in the main array
+          const movedItem = unit.topics.splice(oldIndex, 1)[0];
+      unit.topics.splice(newIndex, 0, movedItem);
+
+      // 2. Re-map the completion states so checkboxes don't jump to the wrong topics
+      let unitCompletions = [];
+      for (let i = 0; i < unit.topics.length; i++) {
+        let id = `${subjectId}_u${unitIdx}_t${i}`;
+        unitCompletions[i] = completedTopicsMap[id] || null;
+        delete completedTopicsMap[id]; // Erase old mappings for this unit
+      }
+
+      // Shift completion statuses exactly like the topics were shifted
+      const movedComp = unitCompletions.splice(oldIndex, 1)[0];
+      unitCompletions.splice(newIndex, 0, movedComp);
+
+      // Re-apply to global sync map
+      for (let i = 0; i < unitCompletions.length; i++) {
+        if (unitCompletions[i] !== null) {
+          completedTopicsMap[`${subjectId}_u${unitIdx}_t${i}`] = unitCompletions[i];
+        }
+      }
+
+      saveCloudState();
+      // Force a full re-render so element IDs map correctly to their new index
+      renderCurriculumStructure(); 
+    }
+
+    async function saveCloudState() {
+        updateSyncStatus('Syncing changes...', true);
+        try {
+          const isDark = document.documentElement.classList.contains('dark-mode');
+          await USER_DOC.set({ 
+            completedTopicsMap,
+            customSyllabus: curriculumSyllabus,
+            theme: isDark ? 'dark' : 'light'
+          }, { merge: true });
+          updateSyncStatus('Cloud Synced');
+        } catch (e) {
+          console.error("Cloud synchronization failure:", e);
+          updateSyncStatus('Sync Error (Check Console)', false, true);
+        }
+      }
 
     function toggleTheme() {
         const root = document.documentElement;
@@ -772,21 +926,25 @@ tailwind.config = {
       }
 
       window.addEventListener('DOMContentLoaded', async () => {
-        // Ensure correct icon is set based on initial theme
-        const isDark = document.documentElement.classList.contains('dark-mode');
-        const icon = document.querySelector('#theme-toggle i');
-        if (icon) {
-          icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-        }
+              // Ensure correct icon is set based on initial theme
+              const isDark = document.documentElement.classList.contains('dark-mode');
+              const icon = document.querySelector('#theme-toggle i');
+              if (icon) {
+                icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+              }
 
-        updateSyncStatus('Loading curriculum data...', true);
-      try {
-        const doc = await USER_DOC.get();
-        if (doc.exists) {
-          const data = doc.data();
-          completedTopicsMap = data.completedTopicsMap || {};
+              updateSyncStatus('Loading curriculum data...', true);
+            try {
+              const doc = await USER_DOC.get();
+              if (doc.exists) {
+                const data = doc.data();
+                completedTopicsMap = data.completedTopicsMap || {};
+          
+                if (data.customSyllabus) {
+                  curriculumSyllabus = data.customSyllabus;
+                }
         
-          // Sync theme from cloud if it exists
+                // Sync theme from cloud if it exists
           if (data.theme) {
             const cloudIsDark = data.theme === 'dark';
             if (cloudIsDark) {
