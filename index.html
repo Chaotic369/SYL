@@ -760,25 +760,29 @@ tailwind.config = {
         }
 
       function renderUnitRoots() {
-              const container = document.getElementById('unit-roots');
-              if (!container) return;
+                    const container = document.getElementById('unit-roots');
+                    if (!container) return;
   
-              if (targetedSubjectFilter !== 'all') {
-                container.classList.add('hidden');
-                return;
-              }
+                    container.classList.remove('hidden');
+                    let html = `<button onclick="switchUnit('all')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${targetedUnitFilter === 'all' ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight'}">All Units</button>`;
   
-              container.classList.remove('hidden');
-              let html = `<button onclick="switchUnit('all')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${targetedUnitFilter === 'all' ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight'}">All Units</button>`;
+                    // Dynamically find the max number of units for the currently selected view
+                    let maxUnits = 0;
+                    curriculumSyllabus.forEach(subject => {
+                      if (targetedActiveFilter === 'sem1' && subject.semester !== 1) return;
+                      if (targetedActiveFilter === 'sem3' && subject.semester !== 3) return;
+                      if (targetedSubjectFilter !== 'all' && subject.id !== targetedSubjectFilter) return;
+                      if (subject.units.length > maxUnits) maxUnits = subject.units.length;
+                    });
+
+                    for(let i=1; i<=maxUnits; i++) {
+                      const isActive = targetedUnitFilter === `unit${i}`;
+                      const btnClass = isActive ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight';
+                      html += `<button onclick="switchUnit('unit${i}')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${btnClass}">Unit ${i}</button>`;
+                    }
   
-              for(let i=1; i<=4; i++) {
-                const isActive = targetedUnitFilter === `unit${i}`;
-                const btnClass = isActive ? 'bg-neu-box text-neu-highlight' : 'hover:bg-neu-box text-neu-text hover:text-neu-highlight';
-                html += `<button onclick="switchUnit('unit${i}')" class="px-5 py-2 font-medium text-xs border border-neu-track rounded-xl transition-all ${btnClass}">Unit ${i}</button>`;
-              }
-  
-              container.innerHTML = html;
-            }
+                    container.innerHTML = html;
+                  }
 
             function switchUnit(unitId) {
               targetedUnitFilter = unitId;
