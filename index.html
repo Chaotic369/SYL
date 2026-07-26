@@ -110,10 +110,13 @@ tailwind.config = {
         <button id="restore-btn" onclick="restoreSyllabus()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-orange-400 hover:text-orange-600 shadow-sm transition-all" title="Restore Default Syllabus (Fix Order/Remove Custom)">
                 <i class="fa-solid fa-clock-rotate-left"></i>
               </button>
+              <button id="edit-mode-btn" onclick="toggleEditMode()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Edit Mode">
+                <i class="fa-solid fa-pen"></i>
+              </button>
               <button id="theme-toggle" onclick="toggleTheme()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-neu-box text-neu-text hover:text-neu-highlight shadow-sm transition-all" title="Toggle Theme">
-          <i class="fa-solid fa-moon"></i>
-        </button>
-      </div>
+                <i class="fa-solid fa-moon"></i>
+              </button>
+            </div>
 
   <main class="max-w-7xl mx-auto px-4 py-8 pt-12">
     
@@ -450,6 +453,7 @@ tailwind.config = {
         let targetedActiveFilter = 'sem3';
         let targetedSubjectFilter = 'all';
         let targetedUnitFilter = 'all';
+        let isEditMode = false;
 
         let historyStack = [];
 
@@ -496,6 +500,24 @@ tailwind.config = {
                       saveCloudState();
                       renderCurriculumStructure();
                       showToast("Default Syllabus Restored");
+                    }
+
+                    function toggleEditMode() {
+                      isEditMode = !isEditMode;
+                      const btn = document.getElementById('edit-mode-btn');
+                      const icon = btn.querySelector('i');
+        
+                      if (isEditMode) {
+                        icon.className = 'fa-solid fa-check';
+                        btn.classList.add('text-green-500');
+                        btn.classList.remove('text-neu-text');
+                      } else {
+                        icon.className = 'fa-solid fa-pen';
+                        btn.classList.remove('text-green-500');
+                        btn.classList.add('text-neu-text');
+                      }
+        
+                      renderCurriculumStructure();
                     }
 
                     const subjectShortNames = {
@@ -563,33 +585,49 @@ tailwind.config = {
                                                             `;
 
                                                   unit.topics.forEach((topic, topicIdx) => {
-                                                            const uniqueId = `${subject.id}_u${unitIdx}_t${topicIdx}`;
-                                                            html += `
-                                                              <li class="flex items-start space-x-3 text-xs text-neu-text transition-colors bg-neu-box rounded-xl -mx-2 p-2 touch-manipulation">
-                                                                <i class="fa-solid fa-grip-vertical text-neu-track mt-1 ml-1 cursor-grab active:cursor-grabbing text-[11px]" title="Hold to drag"></i>
-                                                                <input 
-                                                                  type="checkbox" 
-                                                                  id="${uniqueId}" 
-                                                                  class="mt-0.5 flex-shrink-0 cursor-pointer"
-                                                                  onchange="toggleTopicCompletion('${uniqueId}')"
-                                                                >
-                                                                <div class="flex-1">
-                                                                  <label for="${uniqueId}" onclick="copyTopic(this.innerText)" class="cursor-pointer select-none leading-relaxed font-light block active:opacity-50 transition-opacity" title="Touch to copy">${topic}</label>
-                                                                  <span id="ts-${uniqueId}" class="text-[9px] text-neu-accent mt-0.5 font-mono empty:hidden block"></span>
-                                                                </div>
-                                                              </li>
-                                                            `;
-                                                          });
+                                                                                                              const uniqueId = `${subject.id}_u${unitIdx}_t${topicIdx}`;
+                                                                                                              const dragHandle = isEditMode ? `<i class="fa-solid fa-grip-vertical text-neu-track mt-1 ml-1 cursor-grab active:cursor-grabbing text-[11px]" title="Hold to drag"></i>` : '';
+                                                                                                              const itemControls = isEditMode ? `
+                                                                                                                <div class="flex items-center gap-2 pt-0.5 pr-1 shrink-0">
+                                                                                                                  <button onclick="editTopic('${subject.id}', ${unitIdx}, ${topicIdx})" class="text-neu-accent hover:text-neu-highlight transition-colors" title="Edit Topic">
+                                                                                                                    <i class="fa-solid fa-pen text-[10px]"></i>
+                                                                                                                  </button>
+                                                                                                                  <button onclick="deleteTopic('${subject.id}', ${unitIdx}, ${topicIdx})" class="text-neu-accent hover:text-red-400 transition-colors" title="Delete Topic">
+                                                                                                                    <i class="fa-solid fa-xmark text-[11.5px]"></i>
+                                                                                                                  </button>
+                                                                                                                </div>
+                                                                                                              ` : '';
+                                                            
+                                                                                                              html += `
+                                                                                                                <li class="flex items-start space-x-3 text-xs text-neu-text transition-colors bg-neu-box rounded-xl -mx-2 p-2 touch-manipulation group">
+                                                                                                                  ${dragHandle}
+                                                                                                                  <input 
+                                                                                                                    type="checkbox" 
+                                                                                                                    id="${uniqueId}" 
+                                                                                                                    class="mt-0.5 flex-shrink-0 cursor-pointer"
+                                                                                                                    onchange="toggleTopicCompletion('${uniqueId}')"
+                                                                                                                  >
+                                                                                                                  <div class="flex-1 pr-1">
+                                                                                                                    <label for="${uniqueId}" onclick="copyTopic(this.innerText)" class="cursor-pointer select-none leading-relaxed font-light block active:opacity-50 transition-opacity" title="Touch to copy">${topic}</label>
+                                                                                                                    <span id="ts-${uniqueId}" class="text-[9px] text-neu-accent mt-0.5 font-mono empty:hidden block"></span>
+                                                                                                                  </div>
+                                                                                                                  ${itemControls}
+                                                                                                                </li>
+                                                                                                              `;
+                                                                                                            });
 
-                                                  html += `
-                                                          </ul>
-                                                          <div class="pt-3">
-                                                                                                                      <button onclick="promptAppendTopic('${subject.id}', ${unitIdx})" class="text-[11px] font-medium text-neu-accent hover:text-neu-highlight hover:bg-neu-track/50 transition-colors flex items-center gap-1.5 py-1.5 px-3 rounded-lg active:scale-95 border border-dashed border-neu-track w-max">
-                                                                                                                        <i class="fa-solid fa-plus"></i> Add Topic
-                                                                                                                      </button>
-                                                                                                                    </div>
-                                                                                                                  </div>`;
-                                                                                                          });
+                                                                                                    const addTopicBtn = isEditMode ? `
+                                                                                                            <div class="pt-3">
+                                                                                                              <button onclick="promptAppendTopic('${subject.id}', ${unitIdx})" class="text-[11px] font-medium text-neu-accent hover:text-neu-highlight hover:bg-neu-track/50 transition-colors flex items-center gap-1.5 py-1.5 px-3 rounded-lg active:scale-95 border border-dashed border-neu-track w-max">
+                                                                                                                <i class="fa-solid fa-plus"></i> Add Topic
+                                                                                                              </button>
+                                                                                                            </div>` : '';
+
+                                                                                                    html += `
+                                                                                                            </ul>
+                                                                                                            ${addTopicBtn}
+                                                                                                          </div>`;
+                                                                                                                                                            });
 
                                                                 html += `</div></div>`;
             subjectCard.innerHTML = html;
@@ -597,11 +635,12 @@ tailwind.config = {
           });
 
           // Initialize drag and drop behavior
-          document.querySelectorAll('.sortable-list').forEach(listEl => {
-            Sortable.create(listEl, {
-              animation: 200,
-              delay: 250, // Long press threshold in ms
-              delayOnTouchOnly: true, // Only require long press on mobile touch devices
+                    document.querySelectorAll('.sortable-list').forEach(listEl => {
+                      Sortable.create(listEl, {
+                        disabled: !isEditMode,
+                        animation: 200,
+                        delay: 250, // Long press threshold in ms
+                        delayOnTouchOnly: true, // Only require long press on mobile touch devices
               handle: 'li', // Makes the entire block draggable, not just the handle
               ghostClass: 'opacity-40', // Visual cue for the item being dragged
               onEnd: function (evt) {
@@ -827,23 +866,71 @@ tailwind.config = {
     }
 
   function promptAppendTopic(subjectId, unitIdx) {
-        const newTopic = prompt("Enter new topic name:");
-        if (!newTopic || !newTopic.trim()) return;
+          const newTopic = prompt("Enter new topic name:");
+          if (!newTopic || !newTopic.trim()) return;
+
+          const subject = curriculumSyllabus.find(s => s.id === subjectId);
+          if (!subject) return;
+
+          const unit = subject.units[unitIdx];
+    
+          pushToHistory();
+          // Simply push to the end of the array, no ID shifting needed
+          unit.topics.push(newTopic.trim());
+    
+        saveCloudState();
+        renderCurriculumStructure();
+      }
+
+      function editTopic(subjectId, unitIdx, topicIdx) {
+        const subject = curriculumSyllabus.find(s => s.id === subjectId);
+        if (!subject) return;
+        const unit = subject.units[unitIdx];
+        const currentName = unit.topics[topicIdx];
+
+        const newTopic = prompt("Edit topic name:", currentName);
+        if (!newTopic || newTopic.trim() === "" || newTopic === currentName) return;
+
+        if (typeof pushToHistory === 'function') pushToHistory();
+        unit.topics[topicIdx] = newTopic.trim();
+      
+        saveCloudState();
+        renderCurriculumStructure();
+      }
+
+      function deleteTopic(subjectId, unitIdx, topicIdx) {
+        if (!confirm("Are you sure you want to delete this topic?")) return;
 
         const subject = curriculumSyllabus.find(s => s.id === subjectId);
         if (!subject) return;
-
         const unit = subject.units[unitIdx];
-    
-        pushToHistory();
-        // Simply push to the end of the array, no ID shifting needed
-        unit.topics.push(newTopic.trim());
-    
-      saveCloudState();
-      renderCurriculumStructure();
-    }
 
-    function reorderTopic(subjectId, unitIdx, oldIndex, newIndex) {
+        if (typeof pushToHistory === 'function') pushToHistory();
+
+        // Collect current states for the whole unit
+        let states = [];
+        for (let i = 0; i < unit.topics.length; i++) {
+          let id = `${subjectId}_u${unitIdx}_t${i}`;
+          states.push(completedTopicsMap[id] || null);
+          delete completedTopicsMap[id];
+        }
+
+        // Remove the topic and its completion state
+        unit.topics.splice(topicIdx, 1);
+        states.splice(topicIdx, 1);
+
+        // Re-apply states with new shifted indices
+        for (let i = 0; i < unit.topics.length; i++) {
+          if (states[i] !== null) {
+            completedTopicsMap[`${subjectId}_u${unitIdx}_t${i}`] = states[i];
+          }
+        }
+
+        saveCloudState();
+        renderCurriculumStructure();
+      }
+
+      function reorderTopic(subjectId, unitIdx, oldIndex, newIndex) {
           const subject = curriculumSyllabus.find(s => s.id === subjectId);
           if (!subject) return;
           const unit = subject.units[unitIdx];
